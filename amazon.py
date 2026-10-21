@@ -1,1744 +1,692 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
-
+from io import StringIO
+import base64
 
 # =========================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # =========================================================
-
 st.set_page_config(
     page_title="AMAZON SALES DASHBOARD",
-    page_icon="",
-    layout="wide"
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-
 # =========================================================
-# BASE DIRECTORY
+# FILE PATHS
 # =========================================================
-
 BASE_DIR = Path(__file__).resolve().parent
-
+CSV_PATH = BASE_DIR / "amazon.csv"
+LOGO_PATH = BASE_DIR / "logo.jpg"
 
 # =========================================================
-# MAIN DASHBOARD CSS
+# DARK THEME AND STYLING
 # =========================================================
-
 st.markdown("""
 <style>
-
-/* =====================================================
-   MAIN APP
-===================================================== */
-
 .stApp {
-    background-color: #101820;
+    background: linear-gradient(135deg, #080d19 0%, #111827 100%);
+    color: #f8fafc;
+}
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+    max-width: 1600px;
+}
+h1, h2, h3, p, label {
+    color: #f8fafc;
+}
+div[data-testid="stMetric"] {
+    background: linear-gradient(135deg, #18243a, #202d45);
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 5px 18px rgba(0,0,0,0.25);
+}
+div[data-testid="stMetricLabel"] {
+    color: #cbd5e1;
+}
+div[data-testid="stMetricValue"] {
+    color: #ffffff;
+}
+div[data-testid="stPlotlyChart"] {
+    background: #111827;
+    border-radius: 12px;
+}
+.stDownloadButton button {
+    background: linear-gradient(90deg, #0891b2, #2563eb);
     color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
 }
-
-
-/* =====================================================
-   DASHBOARD TITLE
-===================================================== */
-
-.dashboard-title {
-    text-align: center;
-    color: #FFFFFF;
-    font-size: 38px;
-    font-weight: 900;
-    margin-top: 5px;
-    margin-bottom: 5px;
-    letter-spacing: 1px;
+.stDownloadButton button:hover {
+    color: white;
+    border: 1px solid #38bdf8;
 }
-
-.dashboard-subtitle {
-    text-align: center;
-    color: #AAB4C3;
-    font-size: 15px;
-    margin-bottom: 25px;
+hr {
+    border-color: #334155;
 }
-
-
-/* =====================================================
-   SECTION TITLE
-===================================================== */
-
-.section-title {
-    color: #FFFFFF;
-    font-size: 23px;
-    font-weight: 800;
-    margin-top: 28px;
-    margin-bottom: 15px;
-}
-
-
-/* =====================================================
-   FILTER TITLE
-===================================================== */
-
-.filter-title {
-    color: #FF9900;
-    font-size: 20px;
-    font-weight: 800;
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
-
-
-/* =====================================================
-   SELECT BOX
-===================================================== */
-
-div[data-baseweb="select"] > div {
-    background-color: #1F2937 !important;
-    border: 1px solid #374151 !important;
-    color: white !important;
-    border-radius: 10px !important;
-}
-
-div[data-baseweb="select"] span {
-    color: white !important;
-}
-
-
-/* =====================================================
-   ALL KPI CARDS
-===================================================== */
-
-[data-testid="stMetric"] {
-
-    position: relative !important;
-
-    overflow: hidden !important;
-
-    border-radius: 20px !important;
-
-    padding: 20px !important;
-
-    min-height: 125px !important;
-
-    border: 1px solid rgba(255,255,255,0.12) !important;
-
-    box-shadow:
-        0 8px 25px rgba(0,0,0,0.35),
-        inset 0 1px 0 rgba(255,255,255,0.08) !important;
-
-    transition:
-        transform 0.25s ease,
-        box-shadow 0.25s ease !important;
-}
-
-
-/* =====================================================
-   KPI HOVER
-===================================================== */
-
-[data-testid="stMetric"]:hover {
-
-    transform: translateY(-5px) !important;
-
-    box-shadow:
-        0 14px 35px rgba(0,0,0,0.50),
-        inset 0 1px 0 rgba(255,255,255,0.15) !important;
-}
-
-
-/* =====================================================
-   KPI LABEL
-===================================================== */
-
-[data-testid="stMetricLabel"] {
-
-    color: #FFFFFF !important;
-
-    font-size: 13px !important;
-
-    font-weight: 800 !important;
-
-    letter-spacing: 0.5px !important;
-}
-
-
-/* =====================================================
-   KPI VALUE
-===================================================== */
-
-[data-testid="stMetricValue"] {
-
-    color: #FFFFFF !important;
-
-    font-size: 27px !important;
-
-    font-weight: 900 !important;
-
-    margin-top: 8px !important;
-}
-
-
-/* =====================================================
-   KPI GRADIENT CARDS
-===================================================== */
-
-/* SALES */
-[data-testid="stMetric"]:nth-of-type(1) {
-
-    background:
-        linear-gradient(
-            135deg,
-            #0066FF 0%,
-            #00C6FF 100%
-        ) !important;
-}
-
-
-/* PROFIT */
-[data-testid="stMetric"]:nth-of-type(2) {
-
-    background:
-        linear-gradient(
-            135deg,
-            #00A86B 0%,
-            #00E676 100%
-        ) !important;
-}
-
-
-/* QUANTITY */
-[data-testid="stMetric"]:nth-of-type(3) {
-
-    background:
-        linear-gradient(
-            135deg,
-            #FF6A00 0%,
-            #FFB300 100%
-        ) !important;
-}
-
-
-/* ORDERS */
-[data-testid="stMetric"]:nth-of-type(4) {
-
-    background:
-        linear-gradient(
-            135deg,
-            #6A11CB 0%,
-            #B721FF 100%
-        ) !important;
-}
-
-
-/* =====================================================
-   SECOND ROW GRADIENTS
-===================================================== */
-
-/* AVERAGE SALES */
-.kpi-average-sales [data-testid="stMetric"] {
-
-    background:
-        linear-gradient(
-            135deg,
-            #EC008C,
-            #FC6767
-        ) !important;
-}
-
-
-/* AVERAGE PROFIT */
-.kpi-average-profit [data-testid="stMetric"] {
-
-    background:
-        linear-gradient(
-            135deg,
-            #0083B0,
-            #00B4DB
-        ) !important;
-}
-
-
-/* PRODUCTS */
-.kpi-products [data-testid="stMetric"] {
-
-    background:
-        linear-gradient(
-            135deg,
-            #FF416C,
-            #FF4B2B
-        ) !important;
-}
-
-
-/* CUSTOMERS */
-.kpi-customers [data-testid="stMetric"] {
-
-    background:
-        linear-gradient(
-            135deg,
-            #396AFC,
-            #2948FF
-        ) !important;
-}
-
-
-/* =====================================================
-   PROGRESS BAR
-===================================================== */
-
-.stProgress > div > div > div > div {
-
-    background:
-        linear-gradient(
-            90deg,
-            #00C6FF,
-            #0072FF,
-            #7B2FFF,
-            #FF00CC
-        ) !important;
-}
-
-
-/* =====================================================
-   DOWNLOAD BUTTON
-===================================================== */
-
-.stDownloadButton > button {
-
-    background:
-        linear-gradient(
-            135deg,
-            #FF9900,
-            #FFB700
-        ) !important;
-
-    color: #000000 !important;
-
-    font-weight: 800 !important;
-
-    border: none !important;
-
-    border-radius: 10px !important;
-
-    padding: 10px 20px !important;
-}
-
-.stDownloadButton > button:hover {
-
-    background:
-        linear-gradient(
-            135deg,
-            #FFB700,
-            #FFD000
-        ) !important;
-
-    color: #000000 !important;
-}
-
-
-/* =====================================================
-   FOOTER
-===================================================== */
-
-.footer {
-
-    text-align: center;
-
-    color: #7F8A9A;
-
-    padding: 30px 0 10px 0;
-
-    font-size: 13px;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
-
 # =========================================================
-# FIND LOGO
+# ROBUST CSV LOADER
 # =========================================================
+@st.cache_data
+def load_csv_robust(file_path, modified_time):
+    raw = Path(file_path).read_bytes()
 
-logo_file = None
+    encodings = ["utf-8-sig", "utf-8", "cp1252", "latin1"]
+    last_error = None
 
-logo_names = [
-    "logo.png",
-    "logo.jpg",
-    "logo.jpeg",
-    "logo.webp",
-    "amazon_logo.png",
-    "amazon_logo.jpg",
-    "amazon_logo.jpeg",
-    "amazon_logo.webp"
-]
+    for encoding in encodings:
+        try:
+            text = raw.decode(encoding)
+            df = pd.read_csv(StringIO(text))
+            break
+        except (UnicodeDecodeError, pd.errors.ParserError) as exc:
+            last_error = exc
+    else:
+        raise ValueError(f"Could not read CSV. Last error: {last_error}")
 
-for logo_name in logo_names:
+    df.columns = [
+        str(col).replace("\xa0", " ").strip()
+        for col in df.columns
+    ]
 
-    logo_path = BASE_DIR / logo_name
-
-    if logo_path.exists():
-
-        logo_file = logo_path
-
-        break
-
-
-# =========================================================
-# DISPLAY LOGO
-# =========================================================
-
-if logo_file:
-
-    logo_left, logo_center, logo_right = st.columns(
-        [1, 2, 1]
-    )
-
-    with logo_center:
-
-        st.image(
-            str(logo_file),
-            width=180
+    for col in df.select_dtypes(include=["object"]).columns:
+        df[col] = (
+            df[col]
+            .astype("string")
+            .str.replace("\xa0", " ", regex=False)
+            .str.strip()
         )
 
-else:
-
-    st.markdown(
-        """
-        <div style="
-            text-align:center;
-            color:#FF9900;
-            font-size:42px;
-            font-weight:900;
-            margin-bottom:10px;
-        ">
-            AMAZON
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+    return df
 
 # =========================================================
-# TITLE
+# LOAD DATA AUTOMATICALLY
 # =========================================================
-
-st.markdown(
-    """
-    <div class="dashboard-title">
-         AMAZON SALES DASHBOARD
-    </div>
-
-    <div class="dashboard-subtitle">
-        Sales • Profit • Products • Customers • Performance Analytics
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# =========================================================
-# FIND CSV
-# =========================================================
-
-possible_csv_files = [
-    "amazon_data.csv",
-    "amazon.csv",
-    "Amazon.csv",
-    "AMAZON.csv",
-    "amazon_sales.csv",
-    "Amazon_Sales.csv"
-]
-
-csv_file = None
-
-
-for file_name in possible_csv_files:
-
-    file_path = BASE_DIR / file_name
-
-    if file_path.exists():
-
-        csv_file = file_path
-
-        break
-
-
-# =========================================================
-# FIND ANY CSV
-# =========================================================
-
-if csv_file is None:
-
-    csv_files = list(
-        BASE_DIR.glob("*.csv")
-    )
-
-    if csv_files:
-
-        csv_file = csv_files[0]
-
-
-# =========================================================
-# CHECK CSV
-# =========================================================
-
-if csv_file is None:
-
+if not CSV_PATH.exists():
     st.error(
-        "❌ No CSV file found."
+        f"CSV file not found: {CSV_PATH}\n\n"
+        "Place amazon.csv in the same folder as amazon.py."
     )
-
-    st.info(
-        f"Place your CSV file inside:\n\n{BASE_DIR}"
-    )
-
     st.stop()
 
-
-# =========================================================
-# READ CSV
-# =========================================================
-
-df = None
-
-last_error = None
-
-encodings = [
-    "utf-8",
-    "utf-8-sig",
-    "cp1252",
-    "latin1"
-]
-
-
-for encoding in encodings:
-
-    try:
-
-        df = pd.read_csv(
-            csv_file,
-            encoding=encoding
-        )
-
-        break
-
-    except UnicodeDecodeError as error:
-
-        last_error = error
-
-
-if df is None:
-
-    st.error(
-        f"❌ Unable to read CSV.\n\n{last_error}"
+try:
+    df = load_csv_robust(
+        str(CSV_PATH),
+        CSV_PATH.stat().st_mtime
     )
-
+except Exception as exc:
+    st.error(f"Unable to read CSV: {exc}")
     st.stop()
 
-
 # =========================================================
-# CLEAN COLUMN NAMES
+# VALIDATE COLUMNS
 # =========================================================
-
-df.columns = (
-    df.columns
-    .astype(str)
-    .str.strip()
-    .str.lower()
-    .str.replace(" ", "_", regex=False)
-    .str.replace("-", "_", regex=False)
-)
-
-
-# =========================================================
-# REQUIRED COLUMNS
-# =========================================================
-
 required_columns = [
-    "order_date",
-    "ship_date",
-    "email_id",
-    "geography",
-    "category",
-    "product_name",
-    "sales",
-    "quantity",
-    "profit"
+    "Order ID", "Order Date", "Geography", "Category",
+    "Product Name", "Sales", "Quantity", "Profit"
 ]
-
 
 missing_columns = [
-    column
-    for column in required_columns
-    if column not in df.columns
+    col for col in required_columns if col not in df.columns
 ]
-
 
 if missing_columns:
-
-    st.error(
-        "❌ Required columns are missing."
-    )
-
-    st.write(
-        "### Missing Columns"
-    )
-
-    st.write(
-        missing_columns
-    )
-
-    st.write(
-        "### Columns Found"
-    )
-
-    st.write(
-        list(df.columns)
-    )
-
+    st.error("Missing required columns: " + ", ".join(missing_columns))
+    st.info("Check the column names in amazon.csv.")
     st.stop()
-
-
-# =========================================================
-# CLEAN TEXT COLUMNS
-# =========================================================
-
-text_columns = [
-    "email_id",
-    "geography",
-    "category",
-    "product_name"
-]
-
-
-for column in text_columns:
-
-    df[column] = (
-        df[column]
-        .astype(str)
-        .str.strip()
-    )
-
 
 # =========================================================
 # CLEAN NUMERIC COLUMNS
 # =========================================================
-
-numeric_columns = [
-    "sales",
-    "quantity",
-    "profit"
-]
-
-
-for column in numeric_columns:
-
-    df[column] = (
-        df[column]
-        .astype(str)
+for col in ["Sales", "Quantity", "Profit"]:
+    cleaned = (
+        df[col].astype("string")
+        .str.replace(",", "", regex=False)
         .str.replace("₹", "", regex=False)
         .str.replace("$", "", regex=False)
-        .str.replace(",", "", regex=False)
-        .str.replace("\xa0", "", regex=False)
+        .str.replace("€", "", regex=False)
+        .str.replace("£", "", regex=False)
         .str.strip()
     )
+    df[col] = pd.to_numeric(cleaned, errors="coerce")
 
-    df[column] = pd.to_numeric(
-        df[column],
-        errors="coerce"
+# =========================================================
+# PARSE DATES
+# =========================================================
+df["Order Date"] = pd.to_datetime(
+    df["Order Date"], errors="coerce", dayfirst=False
+)
+
+if "Ship Date" in df.columns:
+    df["Ship Date"] = pd.to_datetime(
+        df["Ship Date"], errors="coerce", dayfirst=False
     )
 
-
 # =========================================================
-# DATE COLUMNS
+# REMOVE INVALID ROWS
 # =========================================================
-
-df["order_date"] = pd.to_datetime(
-    df["order_date"],
-    errors="coerce"
-)
-
-df["ship_date"] = pd.to_datetime(
-    df["ship_date"],
-    errors="coerce"
-)
-
-
-# =========================================================
-# REMOVE INVALID NUMERIC ROWS
-# =========================================================
-
 df = df.dropna(
     subset=[
-        "sales",
-        "quantity",
-        "profit"
+        "Order ID", "Order Date", "Geography", "Category",
+        "Product Name", "Sales", "Quantity", "Profit"
     ]
 ).copy()
 
+if df.empty:
+    st.error("No valid sales records were found in the CSV.")
+    st.stop()
 
 # =========================================================
-# FILTER TITLE
+# CENTERED LOGO
 # =========================================================
+if LOGO_PATH.exists():
+    with open(LOGO_PATH, "rb") as logo_file:
+        logo_base64 = base64.b64encode(
+            logo_file.read()
+        ).decode("utf-8")
 
-st.markdown(
-    """
-    <div class="filter-title">
-        🔎 DASHBOARD FILTERS
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# =========================================================
-# FILTER COLUMNS
-# =========================================================
-
-filter_col1, filter_col2 = st.columns(2)
-
-
-# =========================================================
-# CATEGORY FILTER
-# =========================================================
-
-with filter_col1:
-
-    categories = sorted(
-        df["category"]
-        .dropna()
-        .unique()
-        .tolist()
+    st.markdown(
+        f"""
+        <div style="
+            width:100%;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            margin:0 auto 12px auto;
+        ">
+            <img
+                src="data:image/jpeg;base64,{logo_base64}"
+                alt="Amazon Logo"
+                style="
+                    display:block;
+                    width:180px;
+                    max-width:100%;
+                    height:auto;
+                    object-fit:contain;
+                    margin:0 auto;
+                "
+            />
+        </div>
+        """,
+        unsafe_allow_html=True
     )
-
-    category_options = [
-        "All Categories"
-    ] + categories
-
-    selected_category = st.selectbox(
-        "📁 Category",
-        category_options
-    )
-
-
-# =========================================================
-# CATEGORY FILTER DATA
-# =========================================================
-
-if selected_category == "All Categories":
-
-    category_filtered = df.copy()
-
 else:
-
-    category_filtered = df[
-        df["category"] == selected_category
-    ].copy()
-
-
-# =========================================================
-# GEOGRAPHY FILTER
-# =========================================================
-
-with filter_col2:
-
-    geographies = sorted(
-        category_filtered["geography"]
-        .dropna()
-        .unique()
-        .tolist()
+    st.markdown(
+        "<div style='text-align:center;font-size:48px;'>📦</div>",
+        unsafe_allow_html=True
     )
 
-    geography_options = [
-        "All Geographies"
-    ] + geographies
+# =========================================================
+# DASHBOARD TITLE
+# =========================================================
+st.markdown("""
+<h1 style="
+    text-align:center;
+    color:#38bdf8;
+    font-size:36px;
+    font-weight:800;
+    margin-bottom:5px;
+">AMAZON SALES DASHBOARD</h1>
 
-    selected_geography = st.selectbox(
-        "🌍 Geography",
-        geography_options
+<p style="
+    text-align:center;
+    color:#94a3b8;
+    font-size:15px;
+    margin-top:0;
+">Sales Performance • Profitability • Product Analytics</p>
+""", unsafe_allow_html=True)
+
+st.divider()
+
+# =========================================================
+# TWO FILTERS
+# =========================================================
+st.subheader("🔎 Dashboard Filters")
+
+filter1, filter2 = st.columns(2)
+
+categories = sorted(df["Category"].dropna().unique().tolist())
+geographies = sorted(df["Geography"].dropna().unique().tolist())
+
+with filter1:
+    selected_categories = st.multiselect(
+        "Category",
+        options=categories,
+        default=categories,
+        key="category_filter"
     )
 
+with filter2:
+    selected_geographies = st.multiselect(
+        "Geography",
+        options=geographies,
+        default=geographies,
+        key="geography_filter"
+    )
 
-# =========================================================
-# FINAL FILTER
-# =========================================================
+filtered_df = df[
+    df["Category"].isin(selected_categories)
+    & df["Geography"].isin(selected_geographies)
+].copy()
 
-filtered = category_filtered.copy()
-
-
-if selected_geography != "All Geographies":
-
-    filtered = filtered[
-        filtered["geography"] == selected_geography
-    ].copy()
-
-
-# =========================================================
-# FILTER INFORMATION
-# =========================================================
-
-
-
+if filtered_df.empty:
+    st.warning(
+        "No records match these filters. "
+        "Select at least one category and geography."
+    )
+    st.stop()
 
 # =========================================================
 # KPI CALCULATIONS
 # =========================================================
+total_sales = filtered_df["Sales"].sum()
+total_profit = filtered_df["Profit"].sum()
+total_quantity = filtered_df["Quantity"].sum()
+total_orders = filtered_df["Order ID"].nunique()
 
-total_sales = filtered["sales"].sum()
-
-total_profit = filtered["profit"].sum()
-
-total_quantity = filtered["quantity"].sum()
-
-total_orders = len(filtered)
-
-average_sales = filtered["sales"].mean()
-
-average_profit = filtered["profit"].mean()
-
-total_products = filtered["product_name"].nunique()
-
-total_customers = filtered["email_id"].nunique()
-
-
-if pd.isna(average_sales):
-
-    average_sales = 0
-
-
-if pd.isna(average_profit):
-
-    average_profit = 0
-
-
-if total_sales != 0:
-
-    profit_margin = (
-        total_profit /
-        total_sales
-    ) * 100
-
-else:
-
-    profit_margin = 0
-
+average_sales = filtered_df["Sales"].mean()
+average_profit = filtered_df["Profit"].mean()
+total_products = filtered_df["Product Name"].nunique()
 
 # =========================================================
-# KPI TITLE
+# COLORFUL KPI CARDS
 # =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        📌 KEY PERFORMANCE INDICATORS
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# =========================================================
-# KPI ROW 1
-# =========================================================
-
-kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-
-
-with kpi1:
-
-    st.metric(
-        label="💰 TOTAL SALES",
-        value=f"${total_sales:,.2f}"
-    )
-
-
-with kpi2:
-
-    st.metric(
-        label="📈 TOTAL PROFIT",
-        value=f"${total_profit:,.2f}"
-    )
-
-
-with kpi3:
-
-    st.metric(
-        label="📦 TOTAL QUANTITY",
-        value=f"{total_quantity:,.0f}"
-    )
-
-
-with kpi4:
-
-    st.metric(
-        label="🛒 TOTAL ORDERS",
-        value=f"{total_orders:,}"
-    )
-
-
-# =========================================================
-# SECOND KPI ROW
-# =========================================================
-
-st.write("")
-
-
-kpi5, kpi6, kpi7, kpi8 = st.columns(4)
-
-
-with kpi5:
-
-    st.metric(
-        label="💵 AVERAGE SALES",
-        value=f"${average_sales:,.2f}"
-    )
-
-
-with kpi6:
-
-    st.metric(
-        label="💹 AVERAGE PROFIT",
-        value=f"${average_profit:,.2f}"
-    )
-
-
-with kpi7:
-
-    st.metric(
-        label="🏷️ TOTAL PRODUCTS",
-        value=f"{total_products:,}"
-    )
-
-
-with kpi8:
-
-    st.metric(
-        label="👥 CUSTOMERS",
-        value=f"{total_customers:,}"
-    )
-
-
-# =========================================================
-# EXTRA GRADIENT OVERLAY
-# =========================================================
-
-st.markdown("""
-<style>
-
-/* Make every metric card visually richer */
-
-[data-testid="stMetric"] {
-    background-size: 200% 200% !important;
-}
-
-
-/* Different visual glow for cards */
-
-[data-testid="stMetric"]::before {
-
-    content: "";
-
-    position: absolute;
-
-    top: 0;
-    left: 0;
-
-    width: 100%;
-    height: 5px;
-
-    background:
-        linear-gradient(
-            90deg,
-            #FFFFFF,
-            rgba(255,255,255,0.2),
-            #FFFFFF
-        );
-
-    opacity: 0.65;
-
-}
-
-
-/* Shine */
-
-[data-testid="stMetric"]::after {
-
-    content: "";
-
-    position: absolute;
-
-    width: 150px;
-    height: 150px;
-
-    top: -80px;
-    right: -60px;
-
-    border-radius: 50%;
-
-    background:
-        rgba(255,255,255,0.12);
-
-    pointer-events: none;
-
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-
-# =========================================================
-# PROFIT MARGIN
-# =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        📊 OVERALL PROFIT MARGIN
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-margin_col1, margin_col2 = st.columns(
-    [1, 3]
-)
-
-
-with margin_col1:
-
-    st.metric(
-        "Profit Margin",
-        f"{profit_margin:.2f}%"
-    )
-
-
-with margin_col2:
-
-    progress_value = max(
-        0,
-        min(
-            100,
-            profit_margin
+st.markdown("## 📊 Key Performance Indicators")
+
+kpi_colors = ["#38bdf8", "#34d399", "#fbbf24", "#c084fc"]
+kpi_columns = st.columns(4)
+
+kpi_data = [
+    ("💰 Total Sales", f"{total_sales:,.2f}", kpi_colors[0]),
+    ("📈 Total Profit", f"{total_profit:,.2f}", kpi_colors[1]),
+    ("📦 Total Quantity", f"{total_quantity:,.0f}", kpi_colors[2]),
+    ("🛒 Total Orders", f"{total_orders:,}", kpi_colors[3])
+]
+
+for col, (label, value, color) in zip(kpi_columns, kpi_data):
+    with col:
+        st.markdown(
+            f"""
+            <div style="
+                background:linear-gradient(135deg,#172033,#202d45);
+                border:1px solid {color};
+                border-left:5px solid {color};
+                padding:18px;
+                border-radius:14px;
+                min-height:125px;
+                box-shadow:0 5px 18px rgba(0,0,0,0.25);
+            ">
+                <div style="color:{color};font-size:15px;font-weight:700;">
+                    {label}
+                </div>
+                <div style="
+                    color:#ffffff;
+                    font-size:27px;
+                    font-weight:800;
+                    margin-top:14px;
+                    overflow-wrap:anywhere;
+                ">{value}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
-    )
-
-    st.progress(
-        progress_value / 100
-    )
-
 
 # =========================================================
-# PERFORMANCE GAUGES
+# REUSABLE GAUGE CHART
 # =========================================================
+def create_gauge(title, value, color, suffix=""):
+    upper = max(abs(float(value)) * 1.25, 1.0)
 
-st.markdown(
-    """
-    <div class="section-title">
-        🎯 PERFORMANCE OVERVIEW
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-gauge1, gauge2, gauge3 = st.columns(3)
-
-
-# =========================================================
-# SALES GAUGE
-# =========================================================
-
-with gauge1:
-
-    max_sales = max(
-        abs(total_sales) * 1.2,
-        1
-    )
-
-    fig_sales = go.Figure(
+    fig = go.Figure(
         go.Indicator(
             mode="gauge+number",
-            value=total_sales,
-            title={
-                "text": "Total Sales"
-            },
+            value=float(value),
             number={
-                "prefix": "$",
-                "valueformat": ",.0f"
+                "valueformat": ",.2f",
+                "suffix": suffix,
+                "font": {"size": 25, "color": "#f8fafc"}
+            },
+            title={
+                "text": title,
+                "font": {"size": 17, "color": "#f8fafc"}
             },
             gauge={
                 "axis": {
-                    "range": [
-                        0,
-                        max_sales
-                    ]
+                    "range": [0, upper],
+                    "tickcolor": "#cbd5e1"
                 },
-                "bar": {
-                    "color": "#00C6FF"
-                },
-                "bgcolor": "#1F2937",
+                "bar": {"color": color, "thickness": 0.28},
+                "bgcolor": "#111827",
                 "borderwidth": 1,
-                "bordercolor": "#374151"
+                "bordercolor": "#334155",
+                "steps": [
+                    {"range": [0, upper * 0.33], "color": "#253047"},
+                    {"range": [upper * 0.33, upper * 0.66], "color": "#1e3a4b"},
+                    {"range": [upper * 0.66, upper], "color": "#164e63"}
+                ],
+                "threshold": {
+                    "line": {"color": "#f8fafc", "width": 3},
+                    "thickness": 0.8,
+                    "value": float(value)
+                }
             }
         )
     )
 
-    fig_sales.update_layout(
-        paper_bgcolor="#161A23",
-        font_color="white",
-        height=300
+    fig.update_layout(
+        height=260,
+        margin=dict(l=25, r=25, t=55, b=15),
+        paper_bgcolor="#111827",
+        font_color="#f8fafc"
     )
+    return fig
 
+# =========================================================
+# THREE GAUGE CHARTS
+# =========================================================
+st.markdown("## 🎯 Performance Gauges")
+
+g1, g2, g3 = st.columns(3)
+
+with g1:
     st.plotly_chart(
-        fig_sales,
+        create_gauge("Average Sales", average_sales, "#38bdf8"),
         use_container_width=True
     )
 
-
-# =========================================================
-# PROFIT GAUGE
-# =========================================================
-
-with gauge2:
-
-    max_profit = max(
-        abs(total_profit) * 1.2,
-        1
-    )
-
-    fig_profit = go.Figure(
-        go.Indicator(
-            mode="gauge+number",
-            value=total_profit,
-            title={
-                "text": "Total Profit"
-            },
-            number={
-                "prefix": "$",
-                "valueformat": ",.0f"
-            },
-            gauge={
-                "axis": {
-                    "range": [
-                        0,
-                        max_profit
-                    ]
-                },
-                "bar": {
-                    "color": "#00E676"
-                },
-                "bgcolor": "#1F2937",
-                "borderwidth": 1,
-                "bordercolor": "#374151"
-            }
-        )
-    )
-
-    fig_profit.update_layout(
-        paper_bgcolor="#161A23",
-        font_color="white",
-        height=300
-    )
-
+with g2:
     st.plotly_chart(
-        fig_profit,
+        create_gauge("Average Profit", average_profit, "#34d399"),
         use_container_width=True
     )
 
-
-# =========================================================
-# QUANTITY GAUGE
-# =========================================================
-
-with gauge3:
-
-    max_quantity = max(
-        abs(total_quantity) * 1.2,
-        1
-    )
-
-    fig_quantity = go.Figure(
-        go.Indicator(
-            mode="gauge+number",
-            value=total_quantity,
-            title={
-                "text": "Total Quantity"
-            },
-            number={
-                "valueformat": ",.0f"
-            },
-            gauge={
-                "axis": {
-                    "range": [
-                        0,
-                        max_quantity
-                    ]
-                },
-                "bar": {
-                    "color": "#FFB300"
-                },
-                "bgcolor": "#1F2937",
-                "borderwidth": 1,
-                "bordercolor": "#374151"
-            }
-        )
-    )
-
-    fig_quantity.update_layout(
-        paper_bgcolor="#161A23",
-        font_color="white",
-        height=300
-    )
-
+with g3:
     st.plotly_chart(
-        fig_quantity,
+        create_gauge("Total Products", total_products, "#c084fc"),
         use_container_width=True
     )
 
-
 # =========================================================
-# TOP 5 GEOGRAPHIES
+# DEFAULT PLOTLY STYLE
 # =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        🌍 TOP 5 GEOGRAPHIES BY SALES
-    </div>
-    """,
-    unsafe_allow_html=True
+PLOT_LAYOUT = dict(
+    template="plotly_dark",
+    paper_bgcolor="#111827",
+    plot_bgcolor="#111827",
+    font=dict(color="#f8fafc"),
+    margin=dict(l=35, r=25, t=65, b=40),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="left",
+        x=0
+    )
 )
 
-
-if not filtered.empty:
-
-    geography_sales = (
-        filtered
-        .groupby(
-            "geography",
-            as_index=False
-        )["sales"]
-        .sum()
-        .sort_values(
-            "sales",
-            ascending=False
-        )
-        .head(5)
-    )
-
-
-    fig_geo = px.pie(
-        geography_sales,
-        names="geography",
-        values="sales",
-        hole=0.45,
-        title="Top 5 Geography Sales"
-    )
-
-
-    fig_geo.update_traces(
-        textinfo="label+percent",
-        hovertemplate=(
-            "<b>%{label}</b><br>"
-            "Sales: $%{value:,.2f}<br>"
-            "Share: %{percent}"
-            "<extra></extra>"
-        )
-    )
-
-
-    fig_geo.update_layout(
-        paper_bgcolor="#161A23",
-        plot_bgcolor="#161A23",
-        font_color="white",
-        title_font_color="white",
-        legend_font_color="white"
-    )
-
-
-    st.plotly_chart(
-        fig_geo,
-        use_container_width=True
-    )
-
-
 # =========================================================
-# SALES TREND
+# TOP 5 GEOGRAPHIES BY SALES - PIE CHART
+# VERTICAL LEGEND ON THE RIGHT
 # =========================================================
+st.markdown("## 🌍 Sales by Geography")
 
-st.markdown(
-    """
-    <div class="section-title">
-        📅 SALES TREND
-    </div>
-    """,
-    unsafe_allow_html=True
+geo_sales = (
+    filtered_df.groupby("Geography", as_index=False)["Sales"]
+    .sum()
+    .sort_values("Sales", ascending=False)
+    .head(5)
 )
 
-
-if not filtered.empty:
-
-    trend_data = (
-        filtered
-        .dropna(
-            subset=["order_date"]
-        )
-        .groupby(
-            "order_date",
-            as_index=False
-        )["sales"]
-        .sum()
-        .sort_values(
-            "order_date"
-        )
-    )
-
-
-    if not trend_data.empty:
-
-        fig_trend = px.line(
-            trend_data,
-            x="order_date",
-            y="sales",
-            markers=True,
-            title="Sales Over Time"
-        )
-
-
-        fig_trend.update_traces(
-            line={
-                "width": 3
-            },
-            marker={
-                "size": 7
-            }
-        )
-
-
-        fig_trend.update_layout(
-            paper_bgcolor="#161A23",
-            plot_bgcolor="#161A23",
-            font_color="white",
-            title_font_color="white",
-            xaxis={
-                "gridcolor": "#303746"
-            },
-            yaxis={
-                "gridcolor": "#303746",
-                "tickprefix": "$"
-            }
-        )
-
-
-        st.plotly_chart(
-            fig_trend,
-            use_container_width=True
-        )
-
-
-# =========================================================
-# CATEGORY ANALYSIS
-# =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        📦 CATEGORY ANALYSIS
-    </div>
-    """,
-    unsafe_allow_html=True
+fig_geo = px.pie(
+    geo_sales,
+    names="Geography",
+    values="Sales",
+    title="Top 5 Geographies by Sales",
+    color_discrete_sequence=[
+        "#38bdf8", "#34d399", "#fbbf24",
+        "#c084fc", "#fb7185"
+    ],
+    hole=0.35
 )
 
-
-if not filtered.empty:
-
-    category_data = (
-        filtered
-        .groupby(
-            "category",
-            as_index=False
-        )
-        .agg(
-            Sales=("sales", "sum"),
-            Profit=("profit", "sum"),
-            Quantity=("quantity", "sum")
-        )
+fig_geo.update_traces(
+    textposition="inside",
+    textinfo="percent",
+    showlegend=True,
+    hovertemplate=(
+        "<b>%{label}</b><br>"
+        "Sales: %{value:,.2f}<br>"
+        "Share: %{percent}<extra></extra>"
     )
+)
 
+# Override the default horizontal legend for this chart only
+fig_geo.update_layout(
+    template="plotly_dark",
+    paper_bgcolor="#111827",
+    plot_bgcolor="#111827",
+    font=dict(color="#f8fafc"),
+    title=dict(
+        text="Top 5 Geographies by Sales",
+        x=0.02,
+        xanchor="left"
+    ),
+    legend=dict(
+        orientation="v",
+        title=dict(text="Geography"),
+        x=1.02,
+        xanchor="left",
+        y=0.5,
+        yanchor="middle",
+        font=dict(size=13, color="#f8fafc")
+    ),
+    margin=dict(l=20, r=160, t=65, b=25),
+    height=420
+)
 
-    category_col1, category_col2 = st.columns(2)
+st.plotly_chart(fig_geo, use_container_width=True)
 
+# =========================================================
+# MONTHLY SALES TREND
+# =========================================================
+st.markdown("## 📈 Sales Trend")
 
-    # =====================================================
-    # SALES BY CATEGORY
-    # =====================================================
+trend_df = filtered_df.copy()
+trend_df["Order Month"] = (
+    trend_df["Order Date"].dt.to_period("M").dt.to_timestamp()
+)
 
-    with category_col1:
+monthly_sales = (
+    trend_df.groupby("Order Month", as_index=False)["Sales"]
+    .sum()
+    .sort_values("Order Month")
+)
 
-        fig_category_sales = px.bar(
-            category_data,
-            x="category",
-            y="Sales",
-            title="Sales by Category",
-            text_auto=".2s"
-        )
+fig_trend = px.line(
+    monthly_sales,
+    x="Order Month",
+    y="Sales",
+    markers=True,
+    title="Monthly Sales Trend",
+    color_discrete_sequence=["#38bdf8"]
+)
 
+fig_trend.update_traces(
+    line=dict(width=3),
+    marker=dict(size=7),
+    hovertemplate=(
+        "Month: %{x|%b %Y}<br>"
+        "Sales: %{y:,.2f}<extra></extra>"
+    )
+)
 
-        fig_category_sales.update_layout(
-            paper_bgcolor="#161A23",
-            plot_bgcolor="#161A23",
-            font_color="white",
-            title_font_color="white",
-            xaxis={
-                "gridcolor": "#303746"
-            },
-            yaxis={
-                "gridcolor": "#303746",
-                "tickprefix": "$"
-            }
-        )
+fig_trend.update_layout(**PLOT_LAYOUT, height=420)
+fig_trend.update_xaxes(title="Month")
+fig_trend.update_yaxes(title="Sales")
+st.plotly_chart(fig_trend, use_container_width=True)
 
+# =========================================================
+# CATEGORY ANALYSIS: SALES AND PROFIT
+# =========================================================
+st.markdown("## 📊 Category Analysis")
 
-        st.plotly_chart(
-            fig_category_sales,
-            use_container_width=True
-        )
+category_analysis = (
+    filtered_df.groupby("Category", as_index=False)
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum")
+    )
+    .sort_values("Sales", ascending=False)
+)
 
+fig_category = go.Figure()
 
-    # =====================================================
-    # PROFIT BY CATEGORY
-    # =====================================================
+fig_category.add_trace(
+    go.Bar(
+        x=category_analysis["Category"],
+        y=category_analysis["Sales"],
+        name="Sales by Category",
+        marker_color="#38bdf8",
+        hovertemplate="%{x}<br>Sales: %{y:,.2f}<extra></extra>"
+    )
+)
 
-    with category_col2:
+fig_category.add_trace(
+    go.Bar(
+        x=category_analysis["Category"],
+        y=category_analysis["Profit"],
+        name="Profit by Category",
+        marker_color="#34d399",
+        hovertemplate="%{x}<br>Profit: %{y:,.2f}<extra></extra>"
+    )
+)
 
-        fig_category_profit = px.bar(
-            category_data,
-            x="category",
-            y="Profit",
-            title="Profit by Category",
-            text_auto=".2s"
-        )
+fig_category.update_layout(
+    **PLOT_LAYOUT,
+    title="Sales and Profit by Category",
+    barmode="group",
+    height=450,
+    xaxis_title="Category",
+    yaxis_title="Amount"
+)
 
-
-        fig_category_profit.update_layout(
-            paper_bgcolor="#161A23",
-            plot_bgcolor="#161A23",
-            font_color="white",
-            title_font_color="white",
-            xaxis={
-                "gridcolor": "#303746"
-            },
-            yaxis={
-                "gridcolor": "#303746",
-                "tickprefix": "$"
-            }
-        )
-
-
-        st.plotly_chart(
-            fig_category_profit,
-            use_container_width=True
-        )
-
+st.plotly_chart(fig_category, use_container_width=True)
 
 # =========================================================
 # QUANTITY BY CATEGORY
 # =========================================================
+st.markdown("## 📦 Quantity by Category")
 
-st.markdown(
-    """
-    <div class="section-title">
-        📦 QUANTITY BY CATEGORY
-    </div>
-    """,
-    unsafe_allow_html=True
+quantity_category = (
+    filtered_df.groupby("Category", as_index=False)["Quantity"]
+    .sum()
+    .sort_values("Quantity", ascending=False)
 )
 
+fig_quantity = px.bar(
+    quantity_category,
+    x="Category",
+    y="Quantity",
+    title="Total Quantity by Category",
+    text_auto=".0f",
+    color="Quantity",
+    color_continuous_scale=["#164e63", "#38bdf8", "#c084fc"]
+)
 
-if not filtered.empty:
+fig_quantity.update_layout(
+    **PLOT_LAYOUT,
+    height=420,
+    xaxis_title="Category",
+    yaxis_title="Total Quantity",
+    coloraxis_showscale=False
+)
 
-    fig_quantity_category = px.bar(
-        category_data,
-        x="category",
-        y="Quantity",
-        title="Quantity Sold by Category",
-        text_auto=".2s"
-    )
+st.plotly_chart(fig_quantity, use_container_width=True)
 
+# =========================================================
+# TOP 20 PRODUCTS BY SALES
+# =========================================================
+st.markdown("## 🏆 Top 20 Products by Sales")
 
-    fig_quantity_category.update_layout(
-        paper_bgcolor="#161A23",
-        plot_bgcolor="#161A23",
-        font_color="white",
-        title_font_color="white",
-        xaxis={
-            "gridcolor": "#303746"
-        },
-        yaxis={
-            "gridcolor": "#303746"
-        }
-    )
+product_sales = (
+    filtered_df.groupby("Product Name", as_index=False)["Sales"]
+    .sum()
+    .sort_values("Sales", ascending=False)
+    .head(20)
+    .sort_values("Sales", ascending=True)
+)
 
+fig_products = px.bar(
+    product_sales,
+    x="Sales",
+    y="Product Name",
+    orientation="h",
+    title="Top 20 Products by Total Sales",
+    text_auto=".2s",
+    color="Sales",
+    color_continuous_scale=["#164e63", "#2563eb", "#38bdf8"]
+)
 
-    st.plotly_chart(
-        fig_quantity_category,
+fig_products.update_layout(
+    **PLOT_LAYOUT,
+    height=max(500, len(product_sales) * 28),
+    xaxis_title="Total Sales",
+    yaxis_title="Product",
+    coloraxis_showscale=False
+)
+
+st.plotly_chart(fig_products, use_container_width=True)
+
+# =========================================================
+# DOWNLOAD OPTIONS
+# =========================================================
+st.divider()
+st.markdown("## 📥 Download Data")
+
+download1, download2 = st.columns(2)
+
+with download1:
+    st.download_button(
+        label="⬇️ Download Filtered Sales Data (CSV)",
+        data=filtered_df.to_csv(index=False).encode("utf-8-sig"),
+        file_name="amazon_filtered_sales.csv",
+        mime="text/csv",
         use_container_width=True
     )
 
-
-# =========================================================
-# AVERAGE SALES BY CATEGORY
-# =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        💵 AVERAGE SALES BY CATEGORY
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-if not filtered.empty:
-
-    average_category = (
-        filtered
-        .groupby(
-            "category",
-            as_index=False
-        )["sales"]
-        .mean()
-        .sort_values(
-            "sales",
-            ascending=False
-        )
-    )
-
-
-    fig_average_category = px.bar(
-        average_category,
-        x="category",
-        y="sales",
-        title="Average Sales per Order by Category",
-        text_auto=".2f"
-    )
-
-
-    fig_average_category.update_layout(
-        paper_bgcolor="#161A23",
-        plot_bgcolor="#161A23",
-        font_color="white",
-        title_font_color="white",
-        xaxis={
-            "gridcolor": "#303746"
-        },
-        yaxis={
-            "gridcolor": "#303746",
-            "tickprefix": "$"
-        }
-    )
-
-
-    st.plotly_chart(
-        fig_average_category,
+with download2:
+    st.download_button(
+        label="⬇️ Download Full Sales Data (CSV)",
+        data=df.to_csv(index=False).encode("utf-8-sig"),
+        file_name="amazon_full_sales.csv",
+        mime="text/csv",
         use_container_width=True
     )
-
-
-# =========================================================
-# TOP 20 PRODUCTS
-# =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        🏆 TOP 20 PRODUCTS BY SALES
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-if not filtered.empty:
-
-    top_products = (
-        filtered
-        .groupby(
-            "product_name",
-            as_index=False
-        )["sales"]
-        .sum()
-        .sort_values(
-            "sales",
-            ascending=False
-        )
-        .head(20)
-    )
-
-
-    top_products = top_products.sort_values(
-        "sales",
-        ascending=True
-    )
-
-
-    fig_products = px.bar(
-        top_products,
-        x="sales",
-        y="product_name",
-        orientation="h",
-        title="Top 20 Products",
-        text_auto=".2s"
-    )
-
-
-    fig_products.update_layout(
-        paper_bgcolor="#161A23",
-        plot_bgcolor="#161A23",
-        font_color="white",
-        title_font_color="white",
-        xaxis={
-            "gridcolor": "#303746",
-            "tickprefix": "$"
-        },
-        yaxis={
-            "gridcolor": "#303746"
-        },
-        height=700
-    )
-
-
-    st.plotly_chart(
-        fig_products,
-        use_container_width=True
-    )
-
-
-# =========================================================
-# PROFIT MARGIN BY CATEGORY
-# =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        📈 PROFIT MARGIN BY CATEGORY
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-if not filtered.empty:
-
-    margin_category = (
-        filtered
-        .groupby(
-            "category",
-            as_index=False
-        )
-        .agg(
-            Sales=("sales", "sum"),
-            Profit=("profit", "sum")
-        )
-    )
-
-
-    margin_category["Profit Margin"] = (
-        margin_category["Profit"]
-        /
-        margin_category["Sales"].replace(
-            0,
-            pd.NA
-        )
-    ) * 100
-
-
-    margin_category = margin_category.dropna(
-        subset=["Profit Margin"]
-    )
-
-
-    if not margin_category.empty:
-
-        fig_margin = px.bar(
-            margin_category,
-            x="category",
-            y="Profit Margin",
-            title="Profit Margin by Category (%)",
-            text_auto=".2f"
-        )
-
-
-        fig_margin.update_layout(
-            paper_bgcolor="#161A23",
-            plot_bgcolor="#161A23",
-            font_color="white",
-            title_font_color="white",
-            xaxis={
-                "gridcolor": "#303746"
-            },
-            yaxis={
-                "gridcolor": "#303746",
-                "ticksuffix": "%"
-            }
-        )
-
-
-        st.plotly_chart(
-            fig_margin,
-            use_container_width=True
-        )
-
-
-# =========================================================
-# FILTERED DATASET
-# =========================================================
-
-st.markdown(
-    """
-    <div class="section-title">
-        📋 FILTERED DATASET
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-st.dataframe(
-    filtered,
-    use_container_width=True,
-    height=450
-)
-
-
-# =========================================================
-# DOWNLOAD
-# =========================================================
-
-csv_download = filtered.to_csv(
-    index=False
-).encode("utf-8")
-
-
-st.download_button(
-    label="⬇️ Download Filtered CSV",
-    data=csv_download,
-    file_name="amazon_filtered_data.csv",
-    mime="text/csv"
-)
-
 
 # =========================================================
 # FOOTER
 # =========================================================
-
-st.markdown(
-    """
-    <div class="footer">
-        Amazon Sales Dashboard • Built with Streamlit & Plotly <br> submitted by Melvin Prasad
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<hr>
+<p style="
+    text-align:center;
+    color:#94a3b8;
+    font-size:13px;
+">
+Submitted by MELVIN PRASAD
+    AMAZON SALES DASHBOARD | Built with Python,
+    Streamlit, Pandas and Plotly
+    
+</p>
+""", unsafe_allow_html=True)
